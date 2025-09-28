@@ -1,0 +1,26 @@
+{
+  "name": "cicd-blue-green-deployment",
+  "version": "0.1.0",
+  "bin": {
+    "cicd-blue-green-deployment": "bin/cicd-blue-green-deployment.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest",
+    "cdk": "cdk"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "22.7.9",
+    "aws-cdk": "2.1029.2",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.4.4",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.6.3"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.214.0",
+    "constructs": "^10.0.0"
+  }
+}
