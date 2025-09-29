@@ -1,17 +1,11 @@
-// import * as cdk from 'aws-cdk-lib';
-// import { Template } from 'aws-cdk-lib/assertions';
-// import * as CicdBlueGreenDeployment from '../lib/cicd-blue-green-deployment-stack';
+import * as cdk from 'aws-cdk-lib';
+import { Template } from 'aws-cdk-lib/assertions';
+import { VpcStack } from '../lib/vpc-stack';
 
-// example test. To run these tests, uncomment this file along with the
-// example resource in lib/cicd-blue-green-deployment-stack.ts
-test('SQS Queue Created', () => {
-//   const app = new cdk.App();
-//     // WHEN
-//   const stack = new CicdBlueGreenDeployment.CicdBlueGreenDeploymentStack(app, 'MyTestStack');
-//     // THEN
-//   const template = Template.fromStack(stack);
+test('App synthesizes successfully', () => {
+  const app = new cdk.App();
+  const stack = new VpcStack(app, 'TestVpcStack');
+  const template = Template.fromStack(stack);
 
-//   template.hasResourceProperties('AWS::SQS::Queue', {
-//     VisibilityTimeout: 300
-//   });
+  expect(template).toBeDefined();
 });
