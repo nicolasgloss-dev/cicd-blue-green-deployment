@@ -1,0 +1,38 @@
+name: CI - CDK Blue/Green Deployment
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      # Install dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # Build CDK project
+      - name: Build project
+        run: npm run build
+
+      # Run Jest unit tests
+      - name: Run unit tests
+        run: npm test
+
+      # CDK Synth (validate stacks)
+      - name: CDK Synth
+        run: npx cdk synth
