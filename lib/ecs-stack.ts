@@ -31,7 +31,7 @@ export class EcsStack extends cdk.Stack {
     // (CPU, memory, networking), which is important for troubleshooting and cost awareness.
     this.cluster = new ecs.Cluster(this, 'AppCluster', {
       vpc: props.vpc,
-      containerInsightsV2: true,
+      containerInsights: true,
     });
 
     // ------------------------------------------------------------------------

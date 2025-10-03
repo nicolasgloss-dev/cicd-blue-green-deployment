@@ -41,11 +41,17 @@ export class ServiceStack extends cdk.Stack {
     //   can be reached directly if needed (for testing).
     //   In production this would typically be false, with traffic
     //   routed only through the load balancer.
+    // - deploymentController: REQUIRED for CodeDeploy blue/green
+    //   This tells ECS that deployments will be managed by CodeDeploy,
+    //   not the default rolling update mechanism.
     this.service = new ecs.FargateService(this, 'AppService', {
       cluster: props.cluster,
       taskDefinition: props.taskDefinition,
       desiredCount: 1,
       assignPublicIp: true,
+      deploymentController: {
+        type: ecs.DeploymentControllerType.CODE_DEPLOY,
+      },
     });
 
     // ------------------------------------------------------------------------
