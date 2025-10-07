@@ -1,132 +1,194 @@
-# 🚀 CI/CD Blue-Green Deployment on AWS  
+# 🚀 CI/CD Blue-Green Deployment on AWS ECS
+
 [![CI](https://github.com/nicolasgloss-dev/cicd-blue-green-deployment/actions/workflows/ci.yml/badge.svg)](https://github.com/nicolasgloss-dev/cicd-blue-green-deployment/actions/workflows/ci.yml)
 
-## 📖 Overview  
-This project demonstrates a **fully automated CI/CD pipeline** for an ECS Fargate application with **Blue/Green deployments** on AWS.  
+---
 
-The workflow is:  
-- **GitHub Actions (CI):** Runs Jest unit tests and CDK build on every push.  
-- **AWS CodePipeline (CD):** Automatically deploys from GitHub to ECS with Blue/Green rollout and rollback.  
+## 📖 Overview
+This project showcases a **fully automated CI/CD pipeline** for an Amazon ECS Fargate application using **Blue/Green deployments** on AWS.
 
-Infrastructure is defined using **AWS CDK (TypeScript)**, ensuring reproducible deployments.
+The workflow:
+- **GitHub Actions (CI)** → Runs Jest unit tests and CDK build on every push.  
+- **AWS CodePipeline (CD)** → Deploys automatically from GitHub to ECS Fargate with Blue/Green rollout and automatic rollback.
+
+Infrastructure is defined in **AWS CDK (TypeScript)**, providing reproducible deployments aligned with AWS best practices.
 
 ---
 
-## 🎯 Business Need  
-Modern applications require:  
-- Fast feedback (CI) before deployment.  
-- Safe, automated deployments with minimal downtime.  
-- Rollback capabilities if new versions fail.  
+## 🎯 Business Need
+Modern applications require:
+- Fast feedback and test automation before deployment.  
+- Safe, automated rollouts with near-zero downtime.  
+- Rapid rollback if new versions fail.
 
-This project meets these needs with **GitHub-driven CI** and **AWS-native Blue/Green CD**.
-
----
-
-## 🏗️ Architecture Diagram  
-*(Placeholder for Lucidchart diagram — include in portfolio presentation)*  
-
-**Key components:**  
-- **GitHub Repo** – Application source + CI pipeline (`ci.yml`).  
-- **GitHub Actions** – Builds + runs Jest unit tests on each push.  
-- **AWS CodePipeline** – Orchestrates Build → Deploy.  
-- **AWS CodeBuild** – Synthesises CDK + packages infrastructure.  
-- **AWS CodeDeploy** – Manages ECS Blue/Green deployments.  
-- **ECS Fargate Cluster** – Runs containerised workloads.  
-- **ALB with Blue/Green Target Groups** – Routes traffic safely.  
-- **VPC** – Networking layer with public/private subnets + NAT.  
+This solution meets those goals through **GitHub-driven CI** and **AWS-native Blue/Green CD**.
 
 ---
 
-## 🛠️ AWS Services Used  
-- **Amazon VPC:** 2 AZ, public/private subnets, NAT.  
-- **Amazon ECS Fargate:** Serverless container hosting.  
-- **Application Load Balancer (ALB):** Routes between Blue/Green target groups.  
-- **AWS CodePipeline:** End-to-end deployment orchestration.  
-- **AWS CodeBuild:** Builds CDK and application artifacts.  
-- **AWS CodeDeploy:** Blue/Green deployment control + rollback.  
-- **AWS Secrets Manager:** Stores GitHub token securely for pipeline source.  
-- **IAM:** Role-based access for least-privilege security.  
+## 🏗️ Architecture
+
+### 🖼️ Architecture Diagram
+![High-Level Architecture](docs/diagrams/high-level-architecture.png)  
+*High-level architecture of the CI/CD Blue-Green deployment (exported from Lucidchart).*
+
+**Key Components**
+- **GitHub Repository** – Source code + CI workflow (`ci.yml`).  
+- **GitHub Actions** – Runs Jest tests and CDK build.  
+- **AWS CodePipeline** – Orchestrates build → deploy stages.  
+- **AWS CodeBuild** – Synthesises CDK and builds artefacts.  
+- **AWS CodeDeploy** – Controls Blue/Green rollout & rollback.  
+- **ECS Fargate Cluster** – Serverless container runtime.  
+- **Application Load Balancer** – Routes traffic between Blue/Green target groups.  
+- **VPC** – Two-AZ design with public + private subnets and NAT Gateway.
 
 ---
 
-## ⚙️ Step-by-Step Implementation  
-1. **VPC Stack:** Creates VPC, subnets, NAT.  
-2. **ECS Stack:** ECS cluster, Fargate task definition, ALB + target groups.  
-3. **Service Stack:** Deploys ECS Fargate service, registers with Blue/Green TGs.  
-4. **CodeDeploy Stack:** ECS Application + Deployment Group.  
-5. **Pipeline Stack:** Source (GitHub) → Build (CodeBuild) → Deploy (CodeDeploy ECS Blue/Green).  
-6. **GitHub Actions CI:** `.github/workflows/ci.yml` runs unit tests + build before pipeline.  
+## 🛠️ AWS Services Used
+- **Amazon VPC** → Two AZs, public/private subnets, single NAT Gateway.  
+- **Amazon ECS Fargate** → Serverless container hosting.  
+- **Application Load Balancer** → Routes traffic between Blue/Green target groups.  
+- **AWS CodePipeline** → CI/CD orchestration.  
+- **AWS CodeBuild** → CDK synthesis and build stage.  
+- **AWS CodeDeploy** → Blue/Green deployment control & rollback.  
+- **AWS Secrets Manager** → Secure GitHub token storage.  
+- **AWS IAM** → Scoped least-privilege roles.  
+- **Amazon CloudWatch** → Logs and ECS task metrics.
 
 ---
 
-## 🧪 Testing Strategy  
-- **Stack-level Jest tests** (`*.test.ts`) validate resource creation.  
-  - **VpcStack:** VPC, subnets, NAT.  
-  - **EcsStack:** ECS cluster, ALB, TGs, task definition.  
-  - **ServiceStack:** ECS Fargate service + TG registration.  
-  - **CodeDeployStack:** ECS Application + Deployment Group.  
-  - **PipelineStack:** Pipeline stages and GitHub source action.  
-
-This ensures infrastructure is correct before deployment.
+## ⚙️ Step-by-Step Implementation
+1. **VpcStack** → Networking: VPC, subnets, NAT.  
+2. **EcsStack** → ECS cluster, NGINX task definition, ALB + target groups.  
+3. **ServiceStack** → ECS Fargate service registered with target groups.  
+4. **CodeDeployStack** → ECS Application + Deployment Group.  
+5. **PipelineStack** → GitHub Source → CodeBuild → CodeDeploy.  
+6. **GitHub Actions (CI)** → `.github/workflows/ci.yml` runs build + tests before deployment.
 
 ---
 
-## ✅ Expected Outcomes  
-- One push to GitHub triggers:  
-  1. **CI (GitHub Actions):** Tests + build.  
+## 🧪 Testing Strategy
+Stack-level **Jest unit tests** verify key resources:
+
+| Stack | Validated Components |
+|-------|----------------------|
+| **VpcStack** | VPC, subnets, NAT Gateway |
+| **EcsStack** | ECS cluster, task definition, ALB, target groups |
+| **ServiceStack** | ECS service, target group registration |
+| **CodeDeployStack** | ECS Application + Deployment Group |
+| **PipelineStack** | Source, Build, Deploy stages |
+
+These tests ensure infrastructure correctness before deployment.
+
+---
+
+## 📷 Screenshots
+
+Key visuals from this project demonstrate automated CI/CD verification and deployment flow:
+
+---
+
+### ✅ Unit Tests Passing
+![Screenshot showing Jest unit tests passing in terminal output](docs/screenshots/jest-tests-passing.png)  
+*All Jest unit tests successfully passed (7/7), validating the CDK infrastructure stacks.*
+
+---
+
+### 🔄 GitHub Actions CI
+![Screenshot showing GitHub Actions CI workflow stages passing](docs/screenshots/ci-workflow.png)  
+*CI pipeline automatically runs Jest tests and CDK build on each push.*
+
+---
+
+### 🚀 AWS CodePipeline Stages
+![Screenshot showing AWS CodePipeline Source, Build, and Deploy stages all successful](docs/screenshots/codepipeline-stages.png)  
+*Automated CodePipeline stages performing Source → Build → Deploy Blue/Green rollout.*
+
+---
+
+### 🟢 ECS Service Blue/Green
+![Screenshot showing ECS Fargate service with Blue and Green task sets behind ALB](docs/screenshots/ecs-service-bluegreen.png)  
+*ECS Fargate service showing Blue/Green task sets managed by CodeDeploy behind the ALB.*
+
+---
+
+## ✅ Expected Outcomes
+- Push to GitHub triggers:
+  1. **CI (GitHub Actions):** Run tests + build.  
   2. **CD (CodePipeline):** Build → Deploy to ECS.  
-- Blue/Green deployments with rollback on failure.  
-- Interview-ready demo of hybrid CI/CD with **GitHub + AWS-native deployment**.  
+- ECS Blue/Green deployment with automatic rollback on failure.  
+- Demonstrates **hybrid CI/CD** (GitHub + AWS native).  
+- Portfolio-ready project showcasing IaC, testing, cost awareness and security-first design.
 
 ---
 
-## 🛡️ Failure Scenarios & Mitigations  
+## ⚠️ Failure Scenarios & Mitigations
 - **Unit test failure:** GitHub Actions blocks deployment.  
+- **CDK deployment error:** CI step fails before pipeline deploys; issue identified via `cdk synth` and Jest tests.  
 - **Pipeline build failure:** CodePipeline halts before deployment.  
-- **Unhealthy ECS tasks:** CodeDeploy reverts to last healthy version.  
+- **Container fails health check:** CodeDeploy automatically rolls back to last healthy task set.  
+- **Unhealthy ECS tasks:** Rollback initiated by CodeDeploy monitoring.  
+- **Invalid IAM or ECS configuration:** Caught by CDK validation and unit tests before deployment.
 
 ---
 
-## 💸 Cost Optimisation  
-- 2 AZ + 1 NAT Gateway to reduce costs.  
-- Fargate avoids paying for idle EC2.  
-- Small demo setup keeps costs portfolio-friendly.  
+## 💸 Cost Optimisation
+- Two AZ VPC with one NAT Gateway to reduce network costs.  
+- **Fargate** → Pay-per-running-task (avoids idle EC2 costs).  
+- **Application Load Balancer** → Regional scope in public subnets.  
+- **CodePipeline** → 1 active pipeline/month included in AWS Free Tier — ideal for demo workloads.  
+- **GitHub Actions** → CI runs within free tier for personal projects (no ongoing cost).  
+- Lightweight setup keeps expenses portfolio-friendly.
 
 ---
 
-## 🔐 Security Considerations  
-- GitHub token stored in **Secrets Manager**.  
-- IAM roles scoped with least privilege.  
-- ECS tasks run in private subnets.  
+## 🔐 Security Considerations
+- **Secrets Manager** → Stores GitHub token securely.  
+- **IAM** → Scoped least-privilege roles per service.  
+- **Private Subnets** → ECS tasks isolated behind NAT.  
+- **Security Groups** → Restrict traffic to required ports (e.g. ALB → ECS tasks).
 
 ---
 
-## 🌱 Possible Enhancements  
-- Add manual approval stage in CodePipeline.  
-- Extend GitHub Actions with linting/security scans.  
-- Add CloudWatch dashboards for monitoring.  
-- Replace NGINX container with a real sample app.  
+## 🌱 Possible Enhancements
+- Upgrade ECS monitoring to `containerInsightsV2` when CDK supports it.  
+- Add manual approval stage to CodePipeline.  
+- Extend CI with linting + security scans.  
+- Add Lambda hooks for pre/post-traffic health checks.  
+- Create CloudWatch dashboards for deeper visibility.  
+- Replace NGINX demo with real microservice sample.
 
 ---
 
-## 🧹 Clean-up Steps  
-- Run `cdk destroy` for all stacks.  
-- Delete Secrets Manager GitHub token.  
-- Remove NAT + ALB to avoid charges.  
+## ⚡ Challenges & Solutions
+- **Cross-stack dependencies** → Solved with CDK props (VPC, TGs, listener).  
+- **Blue/Green complexity** → Simplified via modular stacks + CodeDeploy config.  
+- **Hybrid CI/CD** → Combined GitHub CI with AWS-native CD pipeline.  
+- **ECS DeploymentController** → Learned that Blue/Green via CodeDeploy requires `deploymentController: CODE_DEPLOY`.  
+- **Deprecation (Cluster Monitoring)** → Attempted `containerInsightsV2`, reverted to `containerInsights: true` pending CDK support.
 
 ---
 
-## 🧩 Challenges & Solutions  
-- **Cross-stack dependencies:** Solved via CDK props (e.g. VPC, TGs, listener).  
-- **Blue/Green rollout complexity:** Simplified by breaking into modular stacks.  
-- **Hybrid CI/CD flow:** Achieved by combining GitHub CI with AWS-native CD.  
+## 🧹 Clean-up Steps
+To avoid charges after testing:
+```bash
+cdk destroy --all
+```
+Then manually remove:
+- Secrets Manager GitHub token.  
+- ALB and NAT Gateway (if not auto-deleted).
 
 ---
 
-## 💡 Reflection / Lessons Learned  
-- Learned how to integrate GitHub Actions with AWS CodePipeline.  
-- Gained confidence in Blue/Green deployment strategies.  
-- Practiced testing IaC with Jest.  
-- Improved documentation and ADR storytelling for interviews.  
+## 💡 Reflection / Lessons Learned
+- Integrated GitHub Actions with AWS CodePipeline.  
+- Gained hands-on experience with ECS Blue/Green deployments.  
+- Practised IaC testing using Jest with CDK.  
+- Handled CDK deprecations and documented trade-offs.  
+- Improved understanding of deployment controllers and rollback mechanisms.  
+- Strengthened documentation and design clarity through structured ADRs.
+
+
+**Additional Reflection:**  
+Through this project, I reinforced how Infrastructure as Code, CI/CD, and testing intersect in modern cloud engineering. I learned to think about deployment safety and rollback paths as part of design — not as afterthoughts — and to document trade-offs like CDK deprecations clearly. This hands-on experience strengthened my ability to design, test, and explain reliable AWS delivery pipelines in real-world contexts.
 
 ---
