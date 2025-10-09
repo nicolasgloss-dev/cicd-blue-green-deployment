@@ -10,12 +10,6 @@ import {
 import * as codedeploy from 'aws-cdk-lib/aws-codedeploy';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 
-// -----------------------------------------------------------------------------
-// PipelineStackProps
-// -----------------------------------------------------------------------------
-// Defines the input properties required for this stack. These allow the pipeline
-// to connect to the ECS service, cluster, task definition, and CodeDeploy setup.
-// -----------------------------------------------------------------------------
 export interface PipelineStackProps extends cdk.StackProps {
   service: ecs.FargateService;
   listener: elbv2.ApplicationListener;
@@ -27,14 +21,6 @@ export interface PipelineStackProps extends cdk.StackProps {
   deploymentGroup: codedeploy.IEcsDeploymentGroup;
 }
 
-// -----------------------------------------------------------------------------
-// PipelineStack
-// -----------------------------------------------------------------------------
-// Defines a CI/CD pipeline that automates the build and deployment workflow:
-// - Source: retrieves code from GitHub
-// - Build: compiles and synthesises the CDK app
-// - Deploy: updates the ECS service with blue/green support
-// -----------------------------------------------------------------------------
 export class PipelineStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: PipelineStackProps) {
     super(scope, id, props);
@@ -42,18 +28,12 @@ export class PipelineStack extends cdk.Stack {
     // ------------------------------------------------------------------------
     // Artifacts
     // ------------------------------------------------------------------------
-    // Artifacts store files passed between pipeline stages:
-    // - SourceOutput: code retrieved from GitHub
-    // - BuildOutput: compiled and synthesised CDK templates
     const sourceOutput = new codepipeline.Artifact('SourceOutput');
     const buildOutput = new codepipeline.Artifact('BuildOutput');
 
     // ------------------------------------------------------------------------
-    // GitHub Source Action
+    // GitHub Source
     // ------------------------------------------------------------------------
-    // Retrieves application code from GitHub.
-    // The personal access token is stored securely in AWS Secrets Manager.
-    // Secret name: cicd-bluegreen/github-token
     const githubToken = secretsmanager.Secret.fromSecretNameV2(
       this,
       'GithubToken',
@@ -62,45 +42,74 @@ export class PipelineStack extends cdk.Stack {
 
     const sourceAction = new cpactions.GitHubSourceAction({
       actionName: 'GitHub_Source',
-      owner: 'nicolasgloss-dev', // GitHub username
-      repo: 'cicd-blue-green-deployment', // Repository name
-      oauthToken: githubToken.secretValue, // Secure token reference
+      owner: 'nicolasgloss-dev',
+      repo: 'cicd-blue-green-deployment',
+      oauthToken: githubToken.secretValue,
       output: sourceOutput,
-      branch: 'main', // Tracks the main branch
+      branch: 'main',
     });
 
     // ------------------------------------------------------------------------
-    // Build Project
+    // CodeBuild Project
     // ------------------------------------------------------------------------
-    // Defines a CodeBuild project that builds and synthesises the CDK app:
-    // - Uses Node.js 18 runtime
-    // - Installs dependencies and AWS CDK
-    // - Runs TypeScript build and CDK synth
-    // - Outputs generated templates to cdk.out
-    // Note: privileged mode is not required here because this build does not
-    // perform Docker image builds.
     const buildProject = new codebuild.PipelineProject(this, 'BuildProject', {
       environment: {
         buildImage: codebuild.LinuxBuildImage.STANDARD_6_0,
       },
-      buildSpec: codebuild.BuildSpec.fromObject({
+      environmentVariables: {
+        TASK_DEFINITION_ARN: {
+          value: props.taskDefinition.taskDefinitionArn,
+        },
+      },
+      buildSpec: codebuild.BuildSpec.fromObjectToYaml({
         version: '0.2',
         phases: {
           install: {
             'runtime-versions': { nodejs: 18 },
-            commands: ['npm install -g aws-cdk', 'npm install'],
+            commands: [
+              'npm install -g aws-cdk',
+              'apt-get update -y',
+              'apt-get install -y jq',
+              'npm install',
+            ],
           },
           build: {
-            commands: ['npm run build', 'cdk synth'],
+            commands: [
+              'npm run build',
+              'echo "Generating ECS deployment files..."',
+
+              // ✅ Generate ECS task definition
+              'printf "{\\n  \\"family\\": \\"bluegreen-demo-task\\",\\n  \\"networkMode\\": \\"awsvpc\\",\\n  \\"executionRoleArn\\": \\"arn:aws:iam::918689940836:role/ecsTaskExecutionRole\\",\\n  \\"containerDefinitions\\": [ { \\"name\\": \\"AppContainer\\", \\"image\\": \\"example.dkr.ecr.ap-southeast-2.amazonaws.com/app:latest\\", \\"essential\\": true, \\"portMappings\\": [ { \\"containerPort\\": 80, \\"protocol\\": \\"tcp\\" } ] } ],\\n  \\"requiresCompatibilities\\": [\\"FARGATE\\"],\\n  \\"cpu\\": \\"256\\",\\n  \\"memory\\": \\"512\\"\\n}" > taskdef.json',
+
+              // ✅ Generate AppSpec YAML embedding the actual ECS task definition ARN
+              `printf "version: 0.0\\nResources:\\n  - TargetService:\\n      Type: AWS::ECS::Service\\n      Properties:\\n        TaskDefinition: ${props.taskDefinition.taskDefinitionArn}\\n        LoadBalancerInfo:\\n          ContainerName: AppContainer\\n          ContainerPort: 80\\n" > appspec.yaml`,
+
+              // ✅ Generate image definitions
+              'jq -n \'[{"name":"AppContainer","imageUri":"example.dkr.ecr.ap-southeast-2.amazonaws.com/app:latest"}]\' > imagedefinitions.json',
+
+              // ✅ Verification and debug copy
+              'echo "\\nListing generated files:"',
+              'ls -l',
+              'cat appspec.yaml',
+              'aws s3 cp appspec.yaml s3://pipelinestack-apppipelineartifactsbucket543f0539-e0kzfmgxuvbn/debug-appspec.yaml || true',
+            ],
           },
         },
         artifacts: {
-          'base-directory': 'cdk.out',
-          files: ['**/*'],
+          'base-directory': '.',
+          'discard-paths': 'yes',
+          files: [
+            'appspec.yaml',
+            'taskdef.json',
+            'imagedefinitions.json',
+          ],
         },
       }),
     });
 
+    // ------------------------------------------------------------------------
+    // Pipeline Actions
+    // ------------------------------------------------------------------------
     const buildAction = new cpactions.CodeBuildAction({
       actionName: 'Build',
       project: buildProject,
@@ -108,24 +117,21 @@ export class PipelineStack extends cdk.Stack {
       outputs: [buildOutput],
     });
 
-    // ------------------------------------------------------------------------
-    // Deploy Action
-    // ------------------------------------------------------------------------
-    // Updates the ECS Fargate service with the new task definition.
-    // Blue/green traffic shifting is managed by ECS and CodeDeploy.
-    const deployAction = new cpactions.EcsDeployAction({
+    const deployAction = new cpactions.CodeDeployEcsDeployAction({
       actionName: 'DeployBlueGreen',
-      service: props.service,
-      input: buildOutput,
+      deploymentGroup: props.deploymentGroup,
+
+      // ✅ Correctly reference artifact files
+      appSpecTemplateFile: buildOutput.atPath('appspec.yaml'),
+      taskDefinitionTemplateFile: buildOutput.atPath('taskdef.json'),
+
+      // Optional future ECR integration:
+      // imageFile: buildOutput.atPath('imagedefinitions.json'),
     });
 
     // ------------------------------------------------------------------------
-    // CodePipeline
+    // CodePipeline Definition
     // ------------------------------------------------------------------------
-    // Defines the CI/CD pipeline with three stages:
-    // - Source → fetches code from GitHub
-    // - Build → compiles and synthesises the CDK app
-    // - Deploy → updates the ECS Fargate service
     new codepipeline.Pipeline(this, 'AppPipeline', {
       pipelineName: 'CICD-BlueGreenPipeline',
       stages: [
