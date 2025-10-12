@@ -5,7 +5,9 @@ Each decision includes context, choice, consequences, and alternatives considere
 
 ---
 
-## ADR 001 — Infrastructure as Code with AWS CDK
+## 🧩 Core Decisions
+
+### ADR 001 — Infrastructure as Code with AWS CDK
 
 **Decision:**  
 Use **AWS CDK (TypeScript)** for infrastructure provisioning.
@@ -24,7 +26,7 @@ Use **AWS CDK (TypeScript)** for infrastructure provisioning.
 
 ---
 
-## ADR 002 — Networking (VPC Design)
+### ADR 002 — Networking (VPC Design)
 
 **Decision:**  
 Create a new **VPC with public and private subnets across 2–4 AZs**.
@@ -44,7 +46,7 @@ Create a new **VPC with public and private subnets across 2–4 AZs**.
 
 ---
 
-## ADR 003 — ECS Fargate for Compute
+### ADR 003 — ECS Fargate for Compute
 
 **Decision:**  
 Use **ECS Fargate** instead of EC2-backed ECS.
@@ -64,7 +66,7 @@ Use **ECS Fargate** instead of EC2-backed ECS.
 
 ---
 
-## ADR 004 — Blue/Green Deployment Strategy
+### ADR 004 — Blue/Green Deployment Strategy
 
 **Decision:**  
 Use **CodeDeploy with Blue/Green strategy** for zero-downtime deployments.
@@ -83,7 +85,7 @@ Use **CodeDeploy with Blue/Green strategy** for zero-downtime deployments.
 
 ---
 
-## ADR 005 — GitHub Source with Secrets Manager for Token
+### ADR 005 — GitHub Source with Secrets Manager for Token
 
 **Decision:**  
 Use **GitHub repository** as source, with token stored in **AWS Secrets Manager**.
@@ -101,7 +103,7 @@ Use **GitHub repository** as source, with token stored in **AWS Secrets Manager*
 
 ---
 
-## ADR 006 — Testing with Jest
+### ADR 006 — Testing with Jest
 
 **Decision:**  
 Add **unit tests using Jest** for all CDK stacks.
@@ -120,7 +122,7 @@ Add **unit tests using Jest** for all CDK stacks.
 
 ---
 
-## ADR 007 — ECS Cluster Container Insights
+### ADR 007 — ECS Cluster Container Insights
 
 **Decision:**  
 Use `containerInsights: true` instead of `containerInsightsV2`.
@@ -140,7 +142,7 @@ Use `containerInsights: true` instead of `containerInsightsV2`.
 
 ---
 
-## ADR 008 — Cost Optimisation & Security
+### ADR 008 — Cost Optimisation & Security
 
 **Decision:**  
 Apply **cost-conscious and security-first design**.
@@ -160,7 +162,7 @@ Apply **cost-conscious and security-first design**.
 
 ---
 
-## ADR 009 — Lightweight CodePipeline Test Strategy
+### ADR 009 — Lightweight CodePipeline Test Strategy
 
 **Decision:**  
 Adopt a **lightweight mock-based test** to validate CodePipeline components without creating real AWS bindings.
@@ -180,7 +182,70 @@ Adopt a **lightweight mock-based test** to validate CodePipeline components with
 
 ---
 
+## 🚀 Continuous Improvement Decisions
+
+### ADR 010 — CI Workflow Integration (GitHub Actions)
+
+**Decision:**  
+Integrate **GitHub Actions** for continuous integration before AWS CodePipeline.
+
+**Context:**  
+- Needed automated build and test workflow.  
+- Ensures quality checks before deployment to AWS.
+
+**Consequences:**  
+- Every push triggers Jest unit tests and CDK synth for validation.  
+- Immediate feedback reduces deployment issues.  
+- Reflects modern CI/CD practice used in production pipelines.
+
+**Alternatives:**  
+- Manual testing before pushing → Slower and error-prone.  
+- AWS CodeBuild as CI → Possible, but less flexible than GitHub Actions for portfolio use.
+
+---
+
+### ADR 011 — Documentation & Observability
+
+**Decision:**  
+Include **detailed README, diagrams, and screenshots** for documentation and observability.
+
+**Context:**  
+- Reviewers and recruiters benefit from visual clarity.  
+- Diagrams illustrate architecture and workflow.  
+- Screenshots prove hands-on AWS use.
+
+**Consequences:**  
+- Improves transparency and credibility of project.  
+- Helps during interviews as visual discussion points.  
+- Encourages clear, consistent documentation habits.
+
+**Alternatives:**  
+- Minimal documentation → Appears incomplete.  
+- Text-only README → Less engaging for visual learners.
+
+---
+
+### ADR 012 — Testing Strategy Evolution
+
+**Decision:**  
+Combine **unit testing (Jest)** with **manual verification in AWS Console**.
+
+**Context:**  
+- Certain AWS resources (e.g. CodePipeline, target groups) cannot be fully mocked.  
+- Manual observation confirms correct behaviour post-deploy.
+
+**Consequences:**  
+- Balanced validation approach combining automation and real-world checks.  
+- Shows awareness of IaC testing limitations and practical verification methods.
+
+**Alternatives:**  
+- Full integration tests → Costly and time-consuming.  
+- Automated tests only → May miss runtime issues or configuration mismatches.
+
+---
+
 ✅ **Summary:**  
-This ADR log provides a clear trace of technical reasoning and trade-offs made during development — demonstrating not only AWS and CDK skills, but professional judgement around testing, cost, and security.
+This ADR log covers **core architecture, CI/CD flow, documentation, testing strategy, and continuous learning**.  
+It demonstrates strong technical reasoning, professional decision-making, and alignment with AWS best practices — ideal for portfolio and interview presentation.
 
 ---

@@ -8,15 +8,21 @@ import { PipelineStack } from '../lib/pipeline-stack';
 
 const app = new cdk.App();
 
+// -----------------------------------------------------------------------------
 // Step 1: VPC Stack
+// -----------------------------------------------------------------------------
 const vpcStack = new VpcStack(app, 'VpcStack');
 
-// Step 2: ECS Cluster Stack
+// -----------------------------------------------------------------------------
+// Step 2: ECS Cluster + ALB + Target Groups (combined)
+// -----------------------------------------------------------------------------
 const ecsStack = new EcsStack(app, 'EcsStack', {
   vpc: vpcStack.vpc,
 });
 
-// Step 3: Service Stack
+// -----------------------------------------------------------------------------
+// Step 3: ECS Fargate Service
+// -----------------------------------------------------------------------------
 const serviceStack = new ServiceStack(app, 'ServiceStack', {
   cluster: ecsStack.cluster,
   taskDefinition: ecsStack.taskDefinition,
@@ -24,7 +30,9 @@ const serviceStack = new ServiceStack(app, 'ServiceStack', {
   greenTargetGroup: ecsStack.greenTargetGroup,
 });
 
-// Step 4: CodeDeploy Stack
+// -----------------------------------------------------------------------------
+// Step 4: CodeDeploy Stack (handles Blue/Green switching)
+// -----------------------------------------------------------------------------
 const codeDeployStack = new CodeDeployStack(app, 'CodeDeployStack', {
   service: serviceStack.service,
   cluster: ecsStack.cluster,
@@ -33,8 +41,10 @@ const codeDeployStack = new CodeDeployStack(app, 'CodeDeployStack', {
   greenTargetGroup: ecsStack.greenTargetGroup,
 });
 
-// Step 5: Pipeline Stack (GitHub as Source)
-new PipelineStack(app, 'PipelineStack', {
+// -----------------------------------------------------------------------------
+// Step 5: CI/CD Pipeline Stack (GitHub Source → Build → Deploy)
+// -----------------------------------------------------------------------------
+const pipelineStack = new PipelineStack(app, 'PipelineStack', {
   cluster: ecsStack.cluster,
   service: serviceStack.service,
   codedeployApp: codeDeployStack.codedeployApp,
@@ -44,3 +54,12 @@ new PipelineStack(app, 'PipelineStack', {
   greenTargetGroup: ecsStack.greenTargetGroup,
   taskDefinition: ecsStack.taskDefinition,
 });
+
+// -----------------------------------------------------------------------------
+// 🔗 Stack Dependency Ordering
+// -----------------------------------------------------------------------------
+// Ensures proper creation order to prevent “Target group not associated” errors.
+serviceStack.addDependency(vpcStack);
+serviceStack.addDependency(ecsStack);
+codeDeployStack.addDependency(serviceStack);
+pipelineStack.addDependency(codeDeployStack);

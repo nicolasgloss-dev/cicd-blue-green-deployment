@@ -6,3 +6,10 @@ node_modules
 # CDK asset staging directory
 .cdk.staging
 cdk.out
+
+# Build / Deployment artifacts
+artifact.zip
+unzipped/
+cdk.out/
+node_modules/
+dist/

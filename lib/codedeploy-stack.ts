@@ -29,6 +29,10 @@ export interface CodeDeployStackProps extends cdk.StackProps {
 // This enables blue/green deployments with traffic shifting,
 // safe rollback, and configurable termination wait times.
 // -----------------------------------------------------------------------------
+// Note: The Green Target Group is dynamically attached during deployment.
+// The ECS service itself only registers with the Blue TG to avoid
+// creation-time validation errors.
+// -----------------------------------------------------------------------------
 export class CodeDeployStack extends cdk.Stack {
   public readonly codedeployApp: codedeploy.EcsApplication;
   public readonly deploymentGroup: codedeploy.EcsDeploymentGroup;
@@ -51,26 +55,46 @@ export class CodeDeployStack extends cdk.Stack {
     // Connects the ECS service to CodeDeploy.
     // Configures how traffic is shifted between blue and green versions.
     this.deploymentGroup = new codedeploy.EcsDeploymentGroup(this, 'EcsDeploymentGroup', {
-      service: props.service,
-      blueGreenDeploymentConfig: {
-        // Listener controls routing of live traffic
-        listener: props.listener,
+      // Link to CodeDeploy application
+      application: this.codedeployApp,
 
-        // Blue = active target group, Green = new version under test
+      // ECS service being deployed
+      service: props.service,
+
+      // ----------------------------------------------------------------------
+      // Blue/Green Configuration
+      // ----------------------------------------------------------------------
+      blueGreenDeploymentConfig: {
+        // ALB listener that routes live traffic
+        listener: props.listener,
+        // Define Blue (active) and Green (new) target groups
         blueTargetGroup: props.blueTargetGroup,
         greenTargetGroup: props.greenTargetGroup,
-
-        // Time to wait before terminating old tasks after successful switch
+        // Keeps old tasks alive briefly for connection draining and rollback
         terminationWaitTime: Duration.minutes(1),
       },
 
-      // Deployment strategy:
-      // ALL_AT_ONCE → shifts traffic immediately.
-      // Other options (linear, canary) are available for safer rollouts.
+      // ----------------------------------------------------------------------
+      // Deployment Strategy
+      // ----------------------------------------------------------------------
+      // ALL_AT_ONCE → shifts 100% of traffic immediately after verification.
+      // Alternate strategies (canary/linear) can be used for gradual rollouts.
       deploymentConfig: codedeploy.EcsDeploymentConfig.ALL_AT_ONCE,
 
-      // Link deployment group to the CodeDeploy application
-      application: this.codedeployApp,
+      // ----------------------------------------------------------------------
+      // Rollback Settings
+      // ----------------------------------------------------------------------
+      // Enables safer blue/green rollouts in demos or production environments.
+      autoRollback: {
+        failedDeployment: true,
+        stoppedDeployment: true,
+      },
     });
+
+    // ------------------------------------------------------------------------
+    // End of CodeDeployStack
+    // ------------------------------------------------------------------------
+    // ECS Blue/Green deployments are now fully configured.
+    // CodeDeploy handles traffic shifting, rollback, and lifecycle management.
   }
 }

@@ -55,12 +55,13 @@ export class ServiceStack extends cdk.Stack {
     });
 
     // ------------------------------------------------------------------------
-    // Target Group Registration
+    // Register only with Blue Target Group
     // ------------------------------------------------------------------------
-    // Register the service with both blue and green target groups.
-    // CodeDeploy or a CI/CD pipeline can then direct traffic between them
-    // during a deployment, enabling zero-downtime application updates.
+    // This ensures the service starts successfully.
+    // The Green TG will be used by CodeDeploy when creating the replacement task set.
     props.blueTargetGroup.addTarget(this.service);
-    props.greenTargetGroup.addTarget(this.service);
+
+    // ❌ DO NOT attach Green target group here
+    // props.greenTargetGroup.addTarget(this.service);
   }
 }

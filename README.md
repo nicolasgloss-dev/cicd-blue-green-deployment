@@ -28,7 +28,8 @@ This solution meets those goals through **GitHub-driven CI** and **AWS-native Bl
 ## 🏗️ Architecture
 
 ### 🖼️ Architecture Diagram
-![High-Level Architecture](docs/diagrams/high-level-architecture.png)  
+![High-Level architecture of the CI/CD Blue-Green deployment (exported from Lucidchart)](docs/diagrams/high-level-architecture.png)
+
 *High-level architecture of the CI/CD Blue-Green deployment (exported from Lucidchart).*
 
 **Key Components**
@@ -95,7 +96,14 @@ Key visuals from this project demonstrate automated CI/CD verification and deplo
 
 ### 🔄 GitHub Actions CI
 ![Screenshot showing GitHub Actions CI workflow stages passing](docs/screenshots/ci-workflow.png)  
-*CI pipeline automatically runs Jest tests and CDK build on each push.*
+*CI pipeline automatically runs Jest tests and CDK build on each push to main.*
+
+---
+
+### 🧾 Build Artifact Logs
+![Screenshot showing generated build artifacts and verified appspec.yaml output with Task Definition ARN](docs/screenshots/build-artifacts-appspec-arn.png)  
+*CI/CD build logs displaying the generated deployment files — `taskdef.json`, `appspec.yaml`, and `imagedefinitions.json` — followed by verification of `appspec.yaml` contents containing the valid **Task Definition ARN**.  
+This confirms that CodeBuild successfully packaged and validated ECS deployment artifacts prior to the Blue/Green rollout.*
 
 ---
 
@@ -190,5 +198,10 @@ Then manually remove:
 
 **Additional Reflection:**  
 Through this project, I reinforced how Infrastructure as Code, CI/CD, and testing intersect in modern cloud engineering. I learned to think about deployment safety and rollback paths as part of design — not as afterthoughts — and to document trade-offs like CDK deprecations clearly. This hands-on experience strengthened my ability to design, test, and explain reliable AWS delivery pipelines in real-world contexts.
+
+---
+
+📘 For the full engineering write-up (including Failure Scenarios, Expected Outcomes, and Lessons Learned),  
+see [docs/README-detailed.md](docs/README-detailed.md)
 
 ---
