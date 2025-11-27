@@ -1,3 +1,12 @@
+// -----------------------------------------------------------------------------
+// File: vpc-stack.test.ts
+// Project: CI/CD Blue-Green Deployment on AWS ECS Fargate (AWS CDK)
+// Description: Tests ensuring that the VPC stack creates expected subnets,
+//              route tables, and foundational networking resources.
+// Author: Nicolas Gloss
+// Last Updated: 2025-11-28
+// -----------------------------------------------------------------------------
+
 import * as cdk from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
 import { VpcStack } from '../lib/vpc-stack';

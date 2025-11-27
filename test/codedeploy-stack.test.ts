@@ -1,3 +1,12 @@
+// -----------------------------------------------------------------------------
+// File: codedeploy-stack.test.ts
+// Project: CI/CD Blue-Green Deployment on AWS ECS Fargate (AWS CDK)
+// Description: Tests ensuring that CodeDeploy Application and Deployment Group
+//              are configured for Blue/Green ECS deployments.
+// Author: Nicolas Gloss
+// Last Updated: 2025-11-28
+// -----------------------------------------------------------------------------
+
 import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';

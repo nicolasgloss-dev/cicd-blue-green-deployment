@@ -1,3 +1,12 @@
+// -----------------------------------------------------------------------------
+// File: pipeline-stack.test.ts
+// Project: CI/CD Blue-Green Deployment on AWS ECS Fargate (AWS CDK)
+// Description: Tests verifying that the CI/CD pipeline includes proper stages,
+//              artifacts, and CodeDeploy integration for ECS Blue/Green releases.
+// Author: Nicolas Gloss
+// Last Updated: 2025-11-28
+// -----------------------------------------------------------------------------
+
 import * as cdk from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';

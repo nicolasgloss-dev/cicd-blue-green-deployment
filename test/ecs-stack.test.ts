@@ -1,3 +1,12 @@
+// -----------------------------------------------------------------------------
+// File: ecs-stack.test.ts
+// Project: CI/CD Blue-Green Deployment on AWS ECS Fargate (AWS CDK)
+// Description: Tests validating ECS Cluster, Task Definition, and associated
+//              IAM permissions created by the ECS stack.
+// Author: Nicolas Gloss
+// Last Updated: 2025-11-28
+// -----------------------------------------------------------------------------
+
 import * as cdk from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
 import { EcsStack } from '../lib/ecs-stack';

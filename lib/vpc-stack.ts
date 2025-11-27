@@ -1,3 +1,12 @@
+// -----------------------------------------------------------------------------
+// File: vpc-stack.ts
+// Project: CI/CD Blue-Green Deployment on AWS ECS Fargate (AWS CDK)
+// Description: Creates a secure VPC with public and private subnets for ECS
+//              and supporting services, forming the network foundation.
+// Author: Nicolas Gloss
+// Last Updated: 2025-11-28
+// -----------------------------------------------------------------------------
+
 import * as cdk from 'aws-cdk-lib';
 import { aws_ec2 as ec2 } from 'aws-cdk-lib';
 import { Construct } from 'constructs';

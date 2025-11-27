@@ -1,3 +1,12 @@
+// -----------------------------------------------------------------------------
+// File: service-stack.ts
+// Project: CI/CD Blue-Green Deployment on AWS ECS Fargate (AWS CDK)
+// Description: Creates the Application Load Balancer, ECS Service, and both
+//              Blue and Green target groups used for CodeDeploy traffic shifting.
+// Author: Nicolas Gloss
+// Last Updated: 2025-11-28
+// -----------------------------------------------------------------------------
+
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as ecs from 'aws-cdk-lib/aws-ecs';

@@ -1,3 +1,12 @@
+// -----------------------------------------------------------------------------
+// File: ecs-stack.ts
+// Project: CI/CD Blue-Green Deployment on AWS ECS Fargate (AWS CDK)
+// Description: Defines the ECS Cluster and Task Definition used by the
+//              Blue/Green ECS Service deployment.
+// Author: Nicolas Gloss
+// Last Updated: 2025-11-28
+// -----------------------------------------------------------------------------
+
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import {

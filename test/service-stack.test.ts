@@ -1,3 +1,12 @@
+// -----------------------------------------------------------------------------
+// File: service-stack.test.ts
+// Project: CI/CD Blue-Green Deployment on AWS ECS Fargate (AWS CDK)
+// Description: Tests validating ALB, ECS Service, listener, and Blue/Green
+//              target groups required for deployments.
+// Author: Nicolas Gloss
+// Last Updated: 2025-11-28
+// -----------------------------------------------------------------------------
+
 import * as cdk from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
 import { ServiceStack } from '../lib/service-stack';

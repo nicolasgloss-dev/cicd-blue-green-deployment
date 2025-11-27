@@ -1,22 +1,29 @@
-// ============================================================================
-// 🧩 PIPELINE STACK — CI/CD BLUE-GREEN DEPLOYMENT
-// ============================================================================
-// PURPOSE:
-// This stack defines a full CI/CD pipeline that automates the build and
-// Blue/Green deployment of a containerized application running on ECS Fargate.
-//
-// The pipeline integrates the following AWS services:
-// - AWS CodePipeline → Orchestrates the CI/CD process
-// - AWS CodeBuild → Compiles code and generates ECS deployment files
-// - AWS CodeDeploy → Performs Blue/Green deployments on ECS
-// - AWS Secrets Manager → Securely stores the GitHub token
-// - GitHub → Acts as the source repository (trigger for CI/CD)
-//
-// The overall flow is:
-// GitHub (Source) → CodeBuild (Build/Test) → CodeDeploy (Deploy to ECS)
-//
+// -----------------------------------------------------------------------------
+// File: pipeline-stack.ts
+// Project: CI/CD Blue-Green Deployment on AWS ECS Fargate (AWS CDK)
+// Description: Defines the CI/CD pipeline including GitHub source, CodeBuild
+//              stages, and CodeDeploy Blue/Green deployment integration.
 // Author: Nicolas Gloss
-// ============================================================================
+// Last Updated: 2025-11-28
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Pipeline Overview
+// -----------------------------------------------------------------------------
+// This stack defines the CI/CD pipeline responsible for automating the build,
+// test, and Blue/Green deployment of the ECS Fargate application.
+//
+// Core AWS services:
+// - **AWS CodePipeline** → Orchestrates the end-to-end CI/CD workflow.
+// - **AWS CodeBuild** → Builds the application and prepares deployment artifacts.
+// - **AWS CodeDeploy** → Performs ECS Blue/Green deployments with traffic shifting.
+// - **AWS Secrets Manager** → Stores the GitHub token securely.
+// - **GitHub** → Acts as the source repository and triggers pipeline executions.
+//
+// Deployment flow:
+// GitHub (Source) → CodePipeline → CodeBuild (Build/Test) → CodeDeploy (Blue/Green)
+// → ECS Fargate (Production Service)
+// -----------------------------------------------------------------------------
 
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';

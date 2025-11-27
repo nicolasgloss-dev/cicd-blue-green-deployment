@@ -1,4 +1,13 @@
 #!/usr/bin/env node
+// -----------------------------------------------------------------------------
+// File: cicd-blue-green-deployment.ts
+// Project: CI/CD Blue-Green Deployment on AWS ECS Fargate (AWS CDK)
+// Description: Entry point for synthesizing all CDK stacks—VPC, ECS, Service,
+//              CodeDeploy, and CI/CD Pipeline.
+// Author: Nicolas Gloss
+// Last Updated: 2025-11-28
+// -----------------------------------------------------------------------------
+
 import * as cdk from 'aws-cdk-lib';
 import { VpcStack } from '../lib/vpc-stack';
 import { EcsStack } from '../lib/ecs-stack';
