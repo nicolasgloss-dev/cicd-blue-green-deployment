@@ -200,8 +200,12 @@ Then manually remove:
 Through this project, I reinforced how Infrastructure as Code, CI/CD, and testing intersect in modern cloud engineering. I learned to think about deployment safety and rollback paths as part of design — not as afterthoughts — and to document trade-offs like CDK deprecations clearly. This hands-on experience strengthened my ability to design, test, and explain reliable AWS delivery pipelines in real-world contexts.
 
 ---
+## 🔗 Project Links
 
-📘 For the full engineering write-up (including Failure Scenarios, Expected Outcomes, and Lessons Learned),  
-see [docs/README-detailed.md](docs/README-detailed.md)
+- **Project Page:** https://nicolasgloss.com/projects/cicd-blue-green-deployment  
+- **GitHub Repo:** https://github.com/nicolasgloss-dev/cicd-blue-green-deployment  
+- **Architecture Decision Record (ADR):** [docs/adr.md](docs/adr.md)
+
+📘 **Full Engineering Write-up:** [docs/README-detailed.md](docs/README-detailed.md)
 
 ---

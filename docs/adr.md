@@ -1,251 +1,240 @@
 # 🧭 Architecture Decision Log (ADR)
 
-This document records the major design decisions for the **CI/CD Blue-Green Deployment on AWS ECS** project.  
-Each decision includes context, choice, consequences, and alternatives considered.
+This document records the major design decisions for the **CI/CD Blue–Green Deployment on AWS ECS** project.  
+Each decision includes context, the choice made, consequences, and alternatives considered.
 
 ---
 
-## 🧩 Core Decisions
+# 🧩 Core Architecture & Infrastructure Decisions
 
-### ADR 001 — Infrastructure as Code with AWS CDK
+## ADR 001 — Infrastructure as Code with AWS CDK
+**Decision:** Use **AWS CDK (TypeScript)** for infrastructure provisioning.
 
-**Decision:**  
-Use **AWS CDK (TypeScript)** for infrastructure provisioning.
+**Context:**
+- Needed reproducible, automated deployment of AWS resources.
+- CDK provides strong typing, modular constructs, and native AWS integration.
 
-**Context:**  
-- Needed reproducible, automated deployment of AWS resources.  
-- CDK integrates directly with AWS services and allows modular design.
+**Consequences:**
+- Highly maintainable, testable IaC.
+- Clear cross-stack relationships.
+- Learning curve but reflects real AWS engineering practice.
 
-**Consequences:**  
-- Reusable, testable, and strongly typed IaC.  
-- Learning curve for CDK, but matches industry practice for AWS engineers.
-
-**Alternatives:**  
-- Terraform → Cross-cloud but adds complexity.  
-- AWS SAM → Focused on serverless, less suited for ECS + CI/CD.
-
----
-
-### ADR 002 — Networking (VPC Design)
-
-**Decision:**  
-Create a new **VPC with public and private subnets across 2–4 AZs**.
-
-**Context:**  
-- ECS Fargate tasks require a VPC and networking.  
-- NAT Gateway needed for private tasks to reach the internet.
-
-**Consequences:**  
-- Public subnets host the load balancer.  
-- Private subnets host ECS tasks.  
-- NAT Gateway increases cost but models production readiness.
-
-**Alternatives:**  
-- Default VPC → Simpler but not production-ready.  
-- Single-AZ VPC → Cheaper but less resilient.
+**Alternatives:**
+- **Terraform** → Cross-cloud, but adds tooling overhead.
+- **AWS SAM** → More suited for Lambda/serverless-focused projects.
 
 ---
 
-### ADR 003 — ECS Fargate for Compute
+## ADR 002 — Networking (VPC Design)
+**Decision:** Create a new **VPC with public and private subnets across 2–4 AZs**.
 
-**Decision:**  
-Use **ECS Fargate** instead of EC2-backed ECS.
+**Context:**
+- ECS Fargate requires a VPC.
+- Application Load Balancer needs public subnets.
+- Private subnets improve security for ECS tasks.
 
-**Context:**  
-- Portfolio project should minimise operations overhead.  
-- Fargate is serverless and fully managed by AWS.
+**Consequences:**
+- ALB placed in public subnets.
+- ECS tasks isolated in private subnets with NAT access.
 
-**Consequences:**  
-- Pay only for running tasks.  
-- No EC2 patching or cluster management required.  
-- Slightly higher cost for long-running workloads.
-
-**Alternatives:**  
-- ECS on EC2 → More control but adds ops overhead.  
-- EKS (Kubernetes) → Overkill for a portfolio project.
+**Alternatives:**
+- **Default VPC** → Too limited for professional portfolio work.
+- **Single-AZ** → Cheaper but not resilient.
 
 ---
 
-### ADR 004 — Blue/Green Deployment Strategy
+## ADR 003 — ECS Fargate for Compute
+**Decision:** Use **AWS Fargate** for ECS task execution.
 
-**Decision:**  
-Use **CodeDeploy with Blue/Green strategy** for zero-downtime deployments.
+**Context:**
+- Wanted to avoid EC2 management.
+- Portfolio project should focus on architecture, not server patching.
 
-**Context:**  
-- Needed to demonstrate advanced deployment strategies.  
-- ALB allows traffic shifting between target groups.
+**Consequences:**
+- Serverless container execution.
+- Pay-per-second billing.
+- No cluster management.
 
-**Consequences:**  
-- Safer rollouts with automatic rollback on health check failures.  
-- Adds setup complexity, but higher professional value.
-
-**Alternatives:**  
-- Rolling update via ECS → Simpler but lacks rollback control.  
-- Canary deployments with Lambda hooks → Too complex for scope.
-
----
-
-### ADR 005 — GitHub Source with Secrets Manager for Token
-
-**Decision:**  
-Use **GitHub repository** as source, with token stored in **AWS Secrets Manager**.
-
-**Context:**  
-- Required external repo integration with CodePipeline.  
-- Token must remain secure and not stored in code.
-
-**Consequences:**  
-- Secure integration between GitHub and AWS.  
-- Demonstrates professional secrets management.
-
-**Alternatives:**  
-- CodeCommit → Works but less common in industry portfolios.
+**Alternatives:**
+- **ECS on EC2** → More control but unnecessary operational overhead.
+- **EKS** → Overkill for project scope.
 
 ---
 
-### ADR 006 — Testing with Jest
+## ADR 004 — Blue/Green Deployment Strategy with CodeDeploy
+**Decision:** Use **AWS CodeDeploy** with Blue–Green deployment.
 
-**Decision:**  
-Add **unit tests using Jest** for all CDK stacks.
+**Context:**
+- Needed real production-grade deployment safety.
+- Blue/Green demonstrates zero-downtime cutovers.
+- CodeDeploy monitors health and supports automated rollback.
 
-**Context:**  
-- Needed to validate infrastructure programmatically.  
-- Demonstrates DevOps mindset of testing IaC.
+**Consequences:**
+- Safer rollouts and easy rollback.
+- Required creation of two ALB target groups.
+- Required **injection of Task Definition ARN** into `appspec.yaml` to pass CodeDeploy validation.
 
-**Consequences:**  
-- 7/7 tests pass, verifying resources (VPC, ECS, CodeDeploy, Pipeline).  
-- Adds realism and professional polish to the project.
-
-**Alternatives:**  
-- Manual `cdk synth` inspection → Time-consuming and error-prone.  
-- Minimal assertions → Less rigorous validation.
-
----
-
-### ADR 007 — ECS Cluster Container Insights
-
-**Decision:**  
-Use `containerInsights: true` instead of `containerInsightsV2`.
-
-**Context:**  
-- CDK flagged `containerInsights` as deprecated.  
-- Attempted migration failed because stable CDK version didn’t support `containerInsightsV2`.
-
-**Consequences:**  
-- Deprecation warnings remain.  
-- Tests and deployments still pass.  
-- Future migration planned once supported by stable CDK release.
-
-**Alternatives:**  
-- Use nightly CDK builds → Unstable for portfolio.  
-- Disable insights → Unrealistic for production simulation.
+**Alternatives:**
+- **Rolling deployments via ECS** → Simpler but lacks safety and rollback control.
+- **Canary deployments** → More complex than needed.
 
 ---
 
-### ADR 008 — Cost Optimisation & Security
+## ADR 005 — GitHub as Source with Secrets Manager
+**Decision:** Integrate **GitHub** as the pipeline source, storing the OAuth token in **AWS Secrets Manager**.
 
-**Decision:**  
-Apply **cost-conscious and security-first design**.
+**Context:**
+- CodePipeline requires an authenticated source.
+- Token must not be stored in plaintext.
 
-**Context:**  
-- Project should demonstrate AWS Well-Architected Framework awareness.
+**Consequences:**
+- Secure token retrieval.
+- Professional secrets management.
+- Token injection into CodePipeline SourceAction.
 
-**Consequences:**  
-- Fargate avoids idle EC2 costs.  
-- Single NAT Gateway to reduce spend.  
-- IAM least-privilege roles applied.  
-- Secrets securely stored in Secrets Manager.
-
-**Alternatives:**  
-- Run everything in public subnets → Cheaper but insecure.  
-- Hardcode credentials → Unsafe and unprofessional.
+**Alternatives:**
+- **CodeCommit** → Good option but less aligned with industry reality.
 
 ---
 
-### ADR 009 — Lightweight CodePipeline Test Strategy
+## ADR 006 — Testing IaC with Jest
+**Decision:** Use **Jest unit tests** to validate CDK stacks.
 
-**Decision:**  
-Adopt a **lightweight mock-based test** to validate CodePipeline components without creating real AWS bindings.
+**Context:**
+- Needed to demonstrate IaC testability.
+- Ensures core AWS resources are configured correctly.
 
-**Context:**  
-- Full CodePipeline instantiation caused `region` property errors in Jest due to missing AWS context.  
-- Needed a stable, fast, and local-only solution.
+**Consequences:**
+- Consistent pass/fail validation.
+- Prevents invalid synth/deploy operations.
 
-**Consequences:**  
-- All 7/7 tests pass consistently.  
-- No AWS region lookups or replication resources required.  
-- Demonstrates understanding of CDK testing limitations and mocking patterns.
-
-**Alternatives:**  
-- Full integration test with actual pipeline resources → Too slow and unnecessary for unit validation.  
-- Remove pipeline test entirely → Loses critical coverage.
+**Alternatives:**
+- Manual CLI checks → Slow and error-prone.
+- No testing → Not acceptable for professional CI/CD design.
 
 ---
 
-## 🚀 Continuous Improvement Decisions
+## ADR 007 — ECS Cluster Container Insights
+**Decision:** Use `containerInsights: true` until stable `containerInsightsV2` support arrives.
 
-### ADR 010 — CI Workflow Integration (GitHub Actions)
+**Context:**
+- CDK deprecated `containerInsights`.
+- Nightly CDK builds supporting V2 were unstable.
 
-**Decision:**  
-Integrate **GitHub Actions** for continuous integration before AWS CodePipeline.
+**Consequences:**
+- Mild deprecation warning but functional monitoring.
 
-**Context:**  
-- Needed automated build and test workflow.  
-- Ensures quality checks before deployment to AWS.
-
-**Consequences:**  
-- Every push triggers Jest unit tests and CDK synth for validation.  
-- Immediate feedback reduces deployment issues.  
-- Reflects modern CI/CD practice used in production pipelines.
-
-**Alternatives:**  
-- Manual testing before pushing → Slower and error-prone.  
-- AWS CodeBuild as CI → Possible, but less flexible than GitHub Actions for portfolio use.
+**Alternatives:**
+- Disable insights → Not realistic.
+- Use nightly CDK → Too unstable.
 
 ---
 
-### ADR 011 — Documentation & Observability
+# 🔐 Security, Cost, and Reliability Decisions
 
-**Decision:**  
-Include **detailed README, diagrams, and screenshots** for documentation and observability.
+## ADR 008 — Cost Optimisation & Security Practices
+**Decision:** Apply cost-conscious and security-first choices.
 
-**Context:**  
-- Reviewers and recruiters benefit from visual clarity.  
-- Diagrams illustrate architecture and workflow.  
-- Screenshots prove hands-on AWS use.
+**Context:** Follow AWS Well-Architected best practices.
 
-**Consequences:**  
-- Improves transparency and credibility of project.  
-- Helps during interviews as visual discussion points.  
-- Encourages clear, consistent documentation habits.
+**Consequences:**
+- Fargate reduces idle costs.
+- Single NAT Gateway lowers spend.
+- IAM least privilege enforced.
+- Secrets Manager used for credentials.
 
-**Alternatives:**  
-- Minimal documentation → Appears incomplete.  
-- Text-only README → Less engaging for visual learners.
+**Alternatives:**
+- Public subnets for everything → Cheaper but insecure.
+- Hardcoded credentials → Unacceptable.
 
 ---
 
-### ADR 012 — Testing Strategy Evolution
+## ADR 009 — Lightweight Mock-Based Pipeline Tests
+**Decision:** Mock CodePipeline resources to avoid region lookup errors.
 
-**Decision:**  
-Combine **unit testing (Jest)** with **manual verification in AWS Console**.
+**Context:**
+- Full pipeline creation required AWS region context missing during Jest tests.
 
-**Context:**  
-- Certain AWS resources (e.g. CodePipeline, target groups) cannot be fully mocked.  
-- Manual observation confirms correct behaviour post-deploy.
+**Consequences:**
+- Tests run locally without AWS calls.
+- All 7/7 stacks fully tested.
 
-**Consequences:**  
-- Balanced validation approach combining automation and real-world checks.  
-- Shows awareness of IaC testing limitations and practical verification methods.
-
-**Alternatives:**  
-- Full integration tests → Costly and time-consuming.  
-- Automated tests only → May miss runtime issues or configuration mismatches.
+**Alternatives:**
+- Integration tests → Too slow and complex.
 
 ---
 
-✅ **Summary:**  
-This ADR log covers **core architecture, CI/CD flow, documentation, testing strategy, and continuous learning**.  
-It demonstrates strong technical reasoning, professional decision-making, and alignment with AWS best practices — ideal for portfolio and interview presentation.
+# 🔧 CI/CD Workflow & Validation Decisions
+
+## ADR 010 — CI Workflow Using GitHub Actions
+**Decision:** Use **GitHub Actions** for CI, AWS CodePipeline for CD.
+
+**Context:**
+- Needed automated builds/tests before AWS deploy.
+- GitHub Actions offers faster iteration and visibility.
+
+**Consequences:**
+- Each push runs Jest + CDK synth.
+- Failures stop pipeline before deployment.
+
+**Alternatives:**
+- CodeBuild for CI → Works but slower for local repo workflows.
 
 ---
+
+## ADR 011 — Documentation, Diagrams & Observability
+**Decision:** Include detailed README, diagrams, screenshots, and troubleshooting notes.
+
+**Context:**
+- Recruiters and engineers benefit from clarity.
+- Visuals show real AWS usage.
+
+**Consequences:**
+- Stronger portfolio storytelling.
+- Better interview discussions.
+
+**Alternatives:**
+- Minimal documentation → Weak portfolio impression.
+
+---
+
+## ADR 012 — Hybrid Testing Strategy (Automation + Manual Verification)
+**Decision:** Combine Jest tests with manual AWS validation via CLI and Console.
+
+**Context:**
+- Some AWS behaviours only surface during real deployments.
+- CLI-based S3 artifact verification proved essential.
+
+**Consequences:**
+- Confidence in artifact correctness.
+- Balanced approach reflecting real-world DevOps workflows.
+
+**Alternatives:**
+- Full automation → Misses runtime issues.
+- Manual-only → Too slow, not scalable.
+
+---
+
+# 🆕 Additional ADRs from Debugging Insights
+
+## ADR 013 — Artifact Output Strategy (TaskDef ARN Injection)
+**Decision:** Standardise artifact output in a dedicated `output/` directory and dynamically inject **Task Definition ARN** into `appspec.yaml`.
+
+**Context:**
+- Early deployments failed due to `INVALID_REVISION` errors.
+- CodeDeploy requires a fully resolved TaskDef ARN.
+
+**Consequences:**
+- Predictable artifact structure.
+- Successful Blue–Green deployments.
+- Easier debugging with CLI and S3 downloads.
+
+**Alternatives:**
+- Hardcode AppSpec → Not viable for dynamic deployments.
+- Output artifacts into multiple directories → Harder to debug.
+
+---
+
+# ✅ Summary
+This ADR log captures the key architecture, security, and workflow decisions behind the CI/CD Blue–Green Deployment project. It documents the rationale, trade-offs, and lessons learned throughout implementation — supporting clarity, reproducibility, and professional engineering practice.
+
