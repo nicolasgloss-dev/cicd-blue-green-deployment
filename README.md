@@ -101,7 +101,7 @@ Key visuals from this project demonstrate automated CI/CD verification and deplo
 ---
 
 ### 🧾 Build Artifact Logs
-![Screenshot showing generated build artifacts and verified appspec.yaml output with Task Definition ARN](docs/screenshots/build-artifacts-appspec-arn.png)  
+![Screenshot showing generated build artifacts and verified appspec.yaml output with Task Definition ARN](docs/screenshots/build-appspec-arn.png)  
 *CI/CD build logs displaying the generated deployment files — `taskdef.json`, `appspec.yaml`, and `imagedefinitions.json` — followed by verification of `appspec.yaml` contents containing the valid **Task Definition ARN**.  
 This confirms that CodeBuild successfully packaged and validated ECS deployment artifacts prior to the Blue/Green rollout.*
 
