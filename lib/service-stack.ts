@@ -1,8 +1,7 @@
 // -----------------------------------------------------------------------------
 // File: service-stack.ts
 // Project: CI/CD Blue-Green Deployment on AWS ECS Fargate (AWS CDK)
-// Description: Creates the Application Load Balancer, ECS Service, and both
-//              Blue and Green target groups used for CodeDeploy traffic shifting.
+// Description: Creates the ECS Fargate Service and attaches it to the Blue TG.
 // Author: Nicolas Gloss
 // Last Updated: 2025-11-28
 // -----------------------------------------------------------------------------
@@ -11,53 +10,60 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
 
-// -----------------------------------------------------------------------------
-// ServiceStackProps
-// -----------------------------------------------------------------------------
-// Props define dependencies that must be passed into this stack:
-// - cluster: the ECS Cluster where the service will run
-// - taskDefinition: the containerised application definition
-// - blueTargetGroup / greenTargetGroup: target groups used for blue/green
-//   deployments, allowing zero-downtime releases.
-// -----------------------------------------------------------------------------
 export interface ServiceStackProps extends cdk.StackProps {
+  vpc: ec2.Vpc; // needed to create the service security group
+  albSecurityGroup: ec2.ISecurityGroup; // used for least-privilege ingress
   cluster: ecs.Cluster;
   taskDefinition: ecs.FargateTaskDefinition;
   blueTargetGroup: elbv2.ApplicationTargetGroup;
   greenTargetGroup: elbv2.ApplicationTargetGroup;
 }
 
-// -----------------------------------------------------------------------------
-// ServiceStack
-// -----------------------------------------------------------------------------
-// Creates a Fargate Service that runs tasks based on the provided task definition.
-// The service is registered with both blue and green target groups so that
-// traffic can be shifted during deployments.
-// -----------------------------------------------------------------------------
 export class ServiceStack extends cdk.Stack {
   public readonly service: ecs.FargateService;
+
+  // (Optional) export SG for troubleshooting / documentation
+  public readonly serviceSecurityGroup: ec2.SecurityGroup;
 
   constructor(scope: Construct, id: string, props: ServiceStackProps) {
     super(scope, id, props);
 
     // ------------------------------------------------------------------------
-    // Fargate Service
+    // Service Security Group (Explicit)
     // ------------------------------------------------------------------------
-    // - desiredCount: 1 → runs a single copy of the task definition
-    //   (suitable for a demo or portfolio project).
-    // - assignPublicIp: true → assigns a public IP so the service
-    //   can be reached directly if needed (for testing).
-    //   In production this would typically be false, with traffic
-    //   routed only through the load balancer.
-    // - deploymentController: REQUIRED for CodeDeploy blue/green
-    //   This tells ECS that deployments will be managed by CodeDeploy,
-    //   not the default rolling update mechanism.
+    // Least privilege: only ALB can reach the service on port 80.
+    this.serviceSecurityGroup = new ec2.SecurityGroup(this, 'ServiceSecurityGroup', {
+      vpc: props.vpc,
+      description: 'Security group for ECS service tasks (inbound only from ALB)',
+      allowAllOutbound: true,
+    });
+
+    this.serviceSecurityGroup.addIngressRule(
+      props.albSecurityGroup,
+      ec2.Port.tcp(80),
+      'Allow HTTP from ALB only'
+    );
+
+    // ------------------------------------------------------------------------
+    // Fargate Service (Private Subnets)
+    // ------------------------------------------------------------------------
     this.service = new ecs.FargateService(this, 'AppService', {
       cluster: props.cluster,
       taskDefinition: props.taskDefinition,
       desiredCount: 1,
-      assignPublicIp: true,
+
+      // Move tasks into private subnets
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+
+      // No public IPs on tasks
+      assignPublicIp: false,
+
+      // Use SG
+      securityGroups: [this.serviceSecurityGroup],
+
+      // Required for CodeDeploy blue/green
       deploymentController: {
         type: ecs.DeploymentControllerType.CODE_DEPLOY,
       },
@@ -66,11 +72,9 @@ export class ServiceStack extends cdk.Stack {
     // ------------------------------------------------------------------------
     // Register only with Blue Target Group
     // ------------------------------------------------------------------------
-    // This ensures the service starts successfully.
-    // The Green TG will be used by CodeDeploy when creating the replacement task set.
     props.blueTargetGroup.addTarget(this.service);
 
-    // ❌ DO NOT attach Green target group here
+    // Do not attach Green TG here
     // props.greenTargetGroup.addTarget(this.service);
   }
 }

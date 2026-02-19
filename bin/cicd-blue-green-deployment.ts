@@ -33,6 +33,8 @@ const ecsStack = new EcsStack(app, 'EcsStack', {
 // Step 3: ECS Fargate Service
 // -----------------------------------------------------------------------------
 const serviceStack = new ServiceStack(app, 'ServiceStack', {
+  vpc: vpcStack.vpc, // pass VPC for SG creation + subnet selection
+  albSecurityGroup: ecsStack.albSecurityGroup, // allow inbound only from ALB
   cluster: ecsStack.cluster,
   taskDefinition: ecsStack.taskDefinition,
   blueTargetGroup: ecsStack.blueTargetGroup,
@@ -65,7 +67,7 @@ const pipelineStack = new PipelineStack(app, 'PipelineStack', {
 });
 
 // -----------------------------------------------------------------------------
-// 🔗 Stack Dependency Ordering
+// Stack Dependency Ordering
 // -----------------------------------------------------------------------------
 // Ensures proper creation order to prevent “Target group not associated” errors.
 serviceStack.addDependency(vpcStack);

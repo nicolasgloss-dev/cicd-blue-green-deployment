@@ -1,8 +1,7 @@
 // -----------------------------------------------------------------------------
 // File: ecs-stack.ts
 // Project: CI/CD Blue-Green Deployment on AWS ECS Fargate (AWS CDK)
-// Description: Defines the ECS Cluster and Task Definition used by the
-//              Blue/Green ECS Service deployment.
+// Description: Defines the ECS Cluster, ALB, Listener, and Blue/Green Target Groups.
 // Author: Nicolas Gloss
 // Last Updated: 2025-11-28
 // -----------------------------------------------------------------------------
@@ -15,19 +14,19 @@ import {
   aws_elasticloadbalancingv2 as elbv2,
 } from 'aws-cdk-lib';
 
-// Props allow this stack to receive a VPC from another stack.
-// This makes the architecture modular and reusable.
 export interface EcsStackProps extends cdk.StackProps {
   vpc: ec2.Vpc;
 }
 
 export class EcsStack extends cdk.Stack {
-  // Expose these resources so they can be used in other stacks (such as CodeDeploy or Pipeline).
   public readonly cluster: ecs.Cluster;
   public readonly taskDefinition: ecs.FargateTaskDefinition;
   public readonly blueTargetGroup: elbv2.ApplicationTargetGroup;
   public readonly greenTargetGroup: elbv2.ApplicationTargetGroup;
   public readonly listener: elbv2.ApplicationListener;
+
+  // Expose the ALB security group so other stacks can reference it
+  public readonly albSecurityGroup: ec2.SecurityGroup;
 
   constructor(scope: Construct, id: string, props: EcsStackProps) {
     super(scope, id, props);
@@ -35,9 +34,6 @@ export class EcsStack extends cdk.Stack {
     // ------------------------------------------------------------------------
     // ECS Cluster
     // ------------------------------------------------------------------------
-    // A cluster groups ECS resources together. It is deployed into the provided VPC.
-    // containerInsightsV2 enables improved CloudWatch metrics for monitoring
-    // (CPU, memory, networking), which is important for troubleshooting and cost awareness.
     this.cluster = new ecs.Cluster(this, 'AppCluster', {
       vpc: props.vpc,
       containerInsights: true,
@@ -46,58 +42,73 @@ export class EcsStack extends cdk.Stack {
     // ------------------------------------------------------------------------
     // Task Definition
     // ------------------------------------------------------------------------
-    // A Fargate Task Definition specifies how containers should run in ECS.
-    // This example uses a lightweight NGINX container, which is commonly used
-    // as a simple web server for testing and demonstration purposes.
-    // The configuration is minimal and suitable for blue/green deployment testing.
     this.taskDefinition = new ecs.FargateTaskDefinition(this, 'AppTaskDef');
     this.taskDefinition.addContainer('AppContainer', {
-      image: ecs.ContainerImage.fromRegistry('nginx'), // Public container image
-      memoryLimitMiB: 512, // 512MB RAM allocated
-      cpu: 256,            // 0.25 vCPU allocated
-      portMappings: [{ containerPort: 80 }], // Application listens on port 80
+      image: ecs.ContainerImage.fromRegistry('nginx'),
+      memoryLimitMiB: 512,
+      cpu: 256,
+      portMappings: [{ containerPort: 80 }],
     });
 
     // ------------------------------------------------------------------------
-    // Load Balancer
+    // ALB Security Group (Explicit)
     // ------------------------------------------------------------------------
-    // An internet-facing Application Load Balancer to distribute incoming traffic.
-    // This is essential for blue/green deployments because it can shift traffic
-    // between different target groups (blue = current, green = new).
+    // Public entry point: allow inbound HTTP from the internet.
+    this.albSecurityGroup = new ec2.SecurityGroup(this, 'AlbSecurityGroup', {
+      vpc: props.vpc,
+      description: 'Security group for the public Application Load Balancer',
+      allowAllOutbound: true,
+    });
+
+    this.albSecurityGroup.addIngressRule(
+      ec2.Peer.anyIpv4(),
+      ec2.Port.tcp(80),
+      'Allow HTTP from the internet'
+    );
+
+    // ------------------------------------------------------------------------
+    // Load Balancer (internet-facing)
+    // ------------------------------------------------------------------------
     const lb = new elbv2.ApplicationLoadBalancer(this, 'AppLB', {
       vpc: props.vpc,
       internetFacing: true,
       loadBalancerName: 'BlueGreenLB',
+      // Attach SG
+      securityGroup: this.albSecurityGroup,
     });
 
     // ------------------------------------------------------------------------
     // Target Groups (Blue/Green)
     // ------------------------------------------------------------------------
-    // Blue Target Group = currently active version
     this.blueTargetGroup = new elbv2.ApplicationTargetGroup(this, 'BlueTG', {
       port: 80,
       protocol: elbv2.ApplicationProtocol.HTTP,
       vpc: props.vpc,
-      targetType: elbv2.TargetType.IP, // Targets are ECS tasks (IP addresses)
+      targetType: elbv2.TargetType.IP,
+      healthCheck: {
+        path: '/',
+        healthyHttpCodes: '200-399',
+      },
     });
 
-    // Green Target Group = new version to be tested/deployed
     this.greenTargetGroup = new elbv2.ApplicationTargetGroup(this, 'GreenTG', {
       port: 80,
       protocol: elbv2.ApplicationProtocol.HTTP,
       vpc: props.vpc,
       targetType: elbv2.TargetType.IP,
+      healthCheck: {
+        path: '/',
+        healthyHttpCodes: '200-399',
+      },
     });
 
     // ------------------------------------------------------------------------
     // Listener
     // ------------------------------------------------------------------------
-    // The listener accepts incoming traffic on port 80 and routes to a target group.
-    // By default it points to Blue (active). During deployments, CodeDeploy or a CI/CD
-    // pipeline can shift traffic to Green safely, enabling zero-downtime releases.
     this.listener = lb.addListener('AppListener', {
       port: 80,
       defaultTargetGroups: [this.blueTargetGroup],
+      // NOTE: Inbound 80 is open on the ALB SG
     });
   }
 }
