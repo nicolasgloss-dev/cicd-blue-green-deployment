@@ -34,6 +34,9 @@ test('Fargate Service Created and Attached to Target Groups', () => {
   // - taskDefinition: defines the containerised application
   // - blueTargetGroup & greenTargetGroup: enable blue/green deployments
   const stack = new ServiceStack(app, 'TestServiceStack', {
+    vpc: vpcStack.vpc,
+    albSecurityGroup: ecsStack.albSecurityGroup,
+
     cluster: ecsStack.cluster,
     taskDefinition: ecsStack.taskDefinition,
     blueTargetGroup: ecsStack.blueTargetGroup,

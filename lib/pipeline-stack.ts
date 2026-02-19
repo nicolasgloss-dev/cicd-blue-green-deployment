@@ -1,28 +1,9 @@
 // -----------------------------------------------------------------------------
 // File: pipeline-stack.ts
 // Project: CI/CD Blue-Green Deployment on AWS ECS Fargate (AWS CDK)
-// Description: Defines the CI/CD pipeline including GitHub source, CodeBuild
-//              stages, and CodeDeploy Blue/Green deployment integration.
+// Description: CI/CD pipeline (GitHub Source → CodeBuild → CodeDeploy ECS)
 // Author: Nicolas Gloss
 // Last Updated: 2025-11-28
-// -----------------------------------------------------------------------------
-
-// -----------------------------------------------------------------------------
-// Pipeline Overview
-// -----------------------------------------------------------------------------
-// This stack defines the CI/CD pipeline responsible for automating the build,
-// test, and Blue/Green deployment of the ECS Fargate application.
-//
-// Core AWS services:
-// - **AWS CodePipeline** → Orchestrates the end-to-end CI/CD workflow.
-// - **AWS CodeBuild** → Builds the application and prepares deployment artifacts.
-// - **AWS CodeDeploy** → Performs ECS Blue/Green deployments with traffic shifting.
-// - **AWS Secrets Manager** → Stores the GitHub token securely.
-// - **GitHub** → Acts as the source repository and triggers pipeline executions.
-//
-// Deployment flow:
-// GitHub (Source) → CodePipeline → CodeBuild (Build/Test) → CodeDeploy (Blue/Green)
-// → ECS Fargate (Production Service)
 // -----------------------------------------------------------------------------
 
 import * as cdk from 'aws-cdk-lib';
@@ -37,14 +18,6 @@ import {
 import * as codedeploy from 'aws-cdk-lib/aws-codedeploy';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 
-// -----------------------------------------------------------------------------
-// PipelineStackProps
-// -----------------------------------------------------------------------------
-// This interface defines the input properties that the pipeline stack will need.
-// These props are passed from other stacks (like ECS and CodeDeploy stacks)
-// to allow this pipeline to interact with existing resources such as the ECS
-// service, task definition, and deployment group.
-// -----------------------------------------------------------------------------
 export interface PipelineStackProps extends cdk.StackProps {
   service: ecs.FargateService;
   listener: elbv2.ApplicationListener;
@@ -56,66 +29,45 @@ export interface PipelineStackProps extends cdk.StackProps {
   deploymentGroup: codedeploy.IEcsDeploymentGroup;
 }
 
-// -----------------------------------------------------------------------------
-// PipelineStack
-// -----------------------------------------------------------------------------
-// This stack defines the full CI/CD pipeline using AWS CodePipeline.
-// It connects GitHub (source), CodeBuild (build/test), and CodeDeploy (deploy)
-// to achieve an automated Blue/Green deployment for the ECS service.
-// -----------------------------------------------------------------------------
 export class PipelineStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: PipelineStackProps) {
     super(scope, id, props);
 
-    // ------------------------------------------------------------------------
-    // Artifacts
-    // ------------------------------------------------------------------------
-    // Artifacts are the files that move between stages in the pipeline.
-    // Example: Source → Build → Deploy.
     const sourceOutput = new codepipeline.Artifact('SourceOutput');
     const buildOutput = new codepipeline.Artifact('BuildOutput');
 
     // ------------------------------------------------------------------------
-    // GitHub Source Stage
+    // GitHub Source
     // ------------------------------------------------------------------------
-    // This stage pulls the source code directly from GitHub.
-    // The OAuth token is securely stored in AWS Secrets Manager.
     const githubToken = secretsmanager.Secret.fromSecretNameV2(
       this,
       'GithubToken',
-      'cicd-bluegreen/github-token' // secret name in Secrets Manager
+      'cicd-bluegreen/github-token'
     );
 
     const sourceAction = new cpactions.GitHubSourceAction({
       actionName: 'GitHub_Source',
-      owner: 'nicolasgloss-dev', // GitHub username
-      repo: 'cicd-blue-green-deployment', // repository name
+      owner: 'nicolasgloss-dev',
+      repo: 'cicd-blue-green-deployment',
       oauthToken: githubToken.secretValue,
       output: sourceOutput,
-      branch: 'main', // main branch as the source
+      branch: 'main',
     });
 
     // ------------------------------------------------------------------------
-    // CodeBuild Project (Build Stage)
+    // CodeBuild (Build/Test + Prepare Deploy Artifacts)
     // ------------------------------------------------------------------------
-    // CodeBuild compiles and tests the code. Here, it also generates
-    // the ECS deployment files such as taskdef.json and appspec.yaml.
-    // These are required by CodeDeploy for Blue/Green deployments.
     const buildProject = new codebuild.PipelineProject(this, 'BuildProject', {
       environment: {
-        buildImage: codebuild.LinuxBuildImage.STANDARD_6_0, // Linux environment
+        buildImage: codebuild.LinuxBuildImage.STANDARD_6_0,
       },
       environmentVariables: {
-        TASK_DEFINITION_ARN: {
-          value: props.taskDefinition.taskDefinitionArn,
-        },
+        TASK_DEFINITION_ARN: { value: props.taskDefinition.taskDefinitionArn },
+
+        // ✅ Replace this with your real ECR image later (or set it in CodeBuild)
+        // For now it can be a placeholder string to prove the mechanism works.
+        IMAGE_URI: { value: 'example.dkr.ecr.ap-southeast-2.amazonaws.com/app:latest' },
       },
-      // ----------------------------------------------------------------------
-      // BuildSpec: Defines the actual build commands
-      // ----------------------------------------------------------------------
-      // The buildSpec is written inline here as YAML.
-      // It installs dependencies, compiles the CDK project,
-      // and generates deployment descriptor files for ECS.
       buildSpec: codebuild.BuildSpec.fromObjectToYaml({
         version: '0.2',
         phases: {
@@ -125,53 +77,45 @@ export class PipelineStack extends cdk.Stack {
               'npm install -g aws-cdk',
               'apt-get update -y',
               'apt-get install -y jq',
-              'npm install',
+              'npm ci',
             ],
           },
           build: {
             commands: [
               'npm run build',
-              'echo "Generating ECS deployment files..."',
+              'npm test',
 
-              // ✅ Create a task definition file for ECS.
-              // This defines how the container should run.
-              'printf "{\\n  \\"family\\": \\"bluegreen-demo-task\\",\\n  \\"networkMode\\": \\"awsvpc\\",\\n  \\"executionRoleArn\\": \\"arn:aws:iam::918689940836:role/ecsTaskExecutionRole\\",\\n  \\"containerDefinitions\\": [ { \\"name\\": \\"AppContainer\\", \\"image\\": \\"example.dkr.ecr.ap-southeast-2.amazonaws.com/app:latest\\", \\"essential\\": true, \\"portMappings\\": [ { \\"containerPort\\": 80, \\"protocol\\": \\"tcp\\" } ] } ],\\n  \\"requiresCompatibilities\\": [\\"FARGATE\\"],\\n  \\"cpu\\": \\"256\\",\\n  \\"memory\\": \\"512\\"\\n}" > taskdef.json',
+              // ----------------------------------------------------------------
+              // Prepare deployment artifacts in /deploy
+              // ----------------------------------------------------------------
+              // appspec.yaml is committed in the repo under deploy/appspec.yaml
+              // taskdef.json is generated from the currently deployed task definition
+              // to avoid hardcoding executionRoleArn, taskRoleArn, etc.
+              'echo "Preparing deployment artifacts..."',
+              'ls -la',
 
-              // ✅ Generate AppSpec YAML embedding the actual ECS task definition ARN.
-              // This tells CodeDeploy which ECS service and container to update.
-              `printf "version: 0.0\\nResources:\\n  - TargetService:\\n      Type: AWS::ECS::Service\\n      Properties:\\n        TaskDefinition: ${props.taskDefinition.taskDefinitionArn}\\n        LoadBalancerInfo:\\n          ContainerName: AppContainer\\n          ContainerPort: 80\\n" > appspec.yaml`,
+              // ✅ Generate deploy/taskdef.json from the live task definition ARN
+              'aws ecs describe-task-definition --task-definition "$TASK_DEFINITION_ARN" --query taskDefinition > taskdef_full.json',
+              // Strip read-only fields that ECS rejects on register-task-definition
+              'cat taskdef_full.json | jq \'del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)\' > deploy/taskdef.json',
 
-              // ✅ Create image definitions for future ECR automation.
-              'jq -n \'[{"name":"AppContainer","imageUri":"example.dkr.ecr.ap-southeast-2.amazonaws.com/app:latest"}]\' > imagedefinitions.json',
+              // ✅ Generate deploy/imagedefinitions.json used to update container image
+              'jq -n --arg IMAGE_URI "$IMAGE_URI" \'[{"name":"AppContainer","imageUri":$IMAGE_URI}]\' > deploy/imagedefinitions.json',
 
-              // ✅ Verification and debug copy.
-              'echo "\\nListing generated files:"',
-              'ls -l',
-              'cat appspec.yaml',
-
-              // Optional: Upload debug copy to S3 for verification.
-              'aws s3 cp appspec.yaml s3://pipelinestack-apppipelineartifactsbucket543f0539-e0kzfmgxuvbn/debug-appspec.yaml || true',
+              'echo "Deploy artifacts:"',
+              'ls -ლა deploy',
+              'echo "appspec.yaml:"',
+              'cat deploy/appspec.yaml',
             ],
           },
         },
         artifacts: {
-          'base-directory': '.', // current working directory
-          'discard-paths': 'yes',
-          files: [
-            'appspec.yaml',
-            'taskdef.json',
-            'imagedefinitions.json',
-          ],
+          'base-directory': 'deploy',
+          files: ['appspec.yaml', 'taskdef.json'],
         },
       }),
     });
 
-    // ------------------------------------------------------------------------
-    // Pipeline Actions: Build & Deploy
-    // ------------------------------------------------------------------------
-    // These define the flow between stages in CodePipeline.
-    // Build stage compiles the app and creates artifacts.
-    // Deploy stage pushes the new task definition to ECS via CodeDeploy.
     const buildAction = new cpactions.CodeBuildAction({
       actionName: 'Build',
       project: buildProject,
@@ -179,23 +123,19 @@ export class PipelineStack extends cdk.Stack {
       outputs: [buildOutput],
     });
 
+    // ------------------------------------------------------------------------
+    // CodeDeploy ECS Deploy Action
+    // ------------------------------------------------------------------------
     const deployAction = new cpactions.CodeDeployEcsDeployAction({
       actionName: 'DeployBlueGreen',
       deploymentGroup: props.deploymentGroup,
-
-      // ✅ Use generated artifact files from CodeBuild.
       appSpecTemplateFile: buildOutput.atPath('appspec.yaml'),
       taskDefinitionTemplateFile: buildOutput.atPath('taskdef.json'),
-
-      // Optional future ECR integration:
-      // imageFile: buildOutput.atPath('imagedefinitions.json'),
     });
 
     // ------------------------------------------------------------------------
-    // CodePipeline Definition
+    // Pipeline
     // ------------------------------------------------------------------------
-    // The main pipeline that ties all stages together.
-    // It automates: GitHub → Build → Deploy.
     new codepipeline.Pipeline(this, 'AppPipeline', {
       pipelineName: 'CICD-BlueGreenPipeline',
       stages: [
