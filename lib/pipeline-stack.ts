@@ -63,10 +63,6 @@ export class PipelineStack extends cdk.Stack {
       },
       environmentVariables: {
         TASK_DEFINITION_ARN: { value: props.taskDefinition.taskDefinitionArn },
-
-        // ✅ Replace this with your real ECR image later (or set it in CodeBuild)
-        // For now it can be a placeholder string to prove the mechanism works.
-        IMAGE_URI: { value: 'example.dkr.ecr.ap-southeast-2.amazonaws.com/app:latest' },
       },
       buildSpec: codebuild.BuildSpec.fromObjectToYaml({
         version: '0.2',
@@ -94,16 +90,13 @@ export class PipelineStack extends cdk.Stack {
               'echo "Preparing deployment artifacts..."',
               'ls -la',
 
-              // ✅ Generate deploy/taskdef.json from the live task definition ARN
+              // Generate deploy/taskdef.json from the live task definition ARN
               'aws ecs describe-task-definition --task-definition "$TASK_DEFINITION_ARN" --query taskDefinition > taskdef_full.json',
               // Strip read-only fields that ECS rejects on register-task-definition
               'cat taskdef_full.json | jq \'del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)\' > deploy/taskdef.json',
 
-              // ✅ Generate deploy/imagedefinitions.json used to update container image
-              'jq -n --arg IMAGE_URI "$IMAGE_URI" \'[{"name":"AppContainer","imageUri":$IMAGE_URI}]\' > deploy/imagedefinitions.json',
-
               'echo "Deploy artifacts:"',
-              'ls -ლა deploy',
+              'ls -la deploy',
               'echo "appspec.yaml:"',
               'cat deploy/appspec.yaml',
             ],

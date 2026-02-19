@@ -6,6 +6,8 @@
 // Last Updated: 2025-11-28
 // -----------------------------------------------------------------------------
 
+const CONTAINER_NAME = 'AppContainer';
+
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import {
@@ -43,7 +45,7 @@ export class EcsStack extends cdk.Stack {
     // Task Definition
     // ------------------------------------------------------------------------
     this.taskDefinition = new ecs.FargateTaskDefinition(this, 'AppTaskDef');
-    this.taskDefinition.addContainer('AppContainer', {
+    this.taskDefinition.addContainer(CONTAINER_NAME, {
       image: ecs.ContainerImage.fromRegistry('nginx'),
       memoryLimitMiB: 512,
       cpu: 256,
